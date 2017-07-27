@@ -30,7 +30,7 @@ def get_page(url, page, collection_handle=None):
             print('Blocked! Sleeping...')
             time.sleep(180)
             print('Retrying')
-        
+
     products = json.loads(data.decode())['products']
     return products
 
@@ -100,30 +100,37 @@ def extract_products_collection(url, col):
                 return ''
 
             for i, variant in enumerate(product['variants']):
-                price = variant['price']
                 option1_value = variant['option1'] or ''
                 option2_value = variant['option2'] or ''
                 option3_value = variant['option3'] or ''
                 option_value = ' '.join([option1_value, option2_value,
                                          option3_value]).strip()
-                sku = variant['sku']
-                main_image_src = ''
-                if product['images']:
-                    main_image_src = product['images'][0]['src']
 
-                image_src = get_image(variant['id']) or main_image_src
-                stock = 'Yes'
-                if not variant['available']:
-                    stock = 'No'
+                if option_value == 'Default':
+                    price = variant['price']
+                    sku = variant['sku']
+                    main_image_src = ''
+                    if product['images']:
+                        #main_image_src = product['images'][0]['src']
+                        #Get all product images [Rees]
+                        for i, imagedata in enumerate(product['images']):
+                            main_image_src = main_image_src + ' ' + imagedata['src'] # Add the image to the CSV
+                            filename = 'wo_' + variant['sku'].lower() + '_' + str(i) + '.jpg' # Generate the filename for the image
+                            urllib.request.urlretrieve(imagedata['src'], filename) # Save the file using the filename above
 
-                row = {'sku': sku, 'product_type': product_type,
-                       'title': title, 'option_value': option_value,
-                       'price': price, 'stock': stock, 'body': str(product['body_html']),
-                       'variant_id': product_handle + str(variant['id']),
-                       'product_url': product_url, 'image_src': image_src}
-                for k in row:
-                    row[k] = str(row[k].strip()) if row[k] else ''
-                yield row
+                    image_src = get_image(variant['id']) or main_image_src
+                    stock = 'Yes'
+                    if not variant['available']:
+                        stock = 'No'
+
+                    row = {'sku': sku, 'product_type': product_type,
+                           'title': title, 'option_value': option_value,
+                           'price': price, 'stock': stock, 'body': str(product['body_html']),
+                           'variant_id': product_handle + str(variant['id']),
+                           'product_url': product_url, 'image_src': image_src}
+                    for k in row:
+                        row[k] = str(row[k].strip()) if row[k] else ''
+                    yield row
 
         page += 1
         products = get_page(url, page, col)
